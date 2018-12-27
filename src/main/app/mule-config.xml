@@ -1,0 +1,93 @@
+<mule xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns="http://www.mulesoft.org/schema/mule/core"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:spring="http://www.springframework.org/schema/beans"
+    xmlns:cxf="http://www.mulesoft.org/schema/mule/cxf"
+    xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+    xmlns:http="http://www.mulesoft.org/schema/mule/http"
+    xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/cxf http://www.mulesoft.org/schema/mule/cxf/current/mule-cxf.xsd 
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd 
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd " version="EE-3.3.0">
+    <spring:beans>
+        <spring:bean id="Bean" name="samlCustomValidator" class="com.mulesoft.mule.example.security.SAMLCustomValidator"/>
+    </spring:beans>
+
+    <flow name="UnsecureServiceFlow" doc:name="UnsecureServiceFlow">
+        <http:inbound-endpoint address="http://localhost:63081/services/unsecure" exchange-pattern="request-response" doc:name="HTTP Inbound Endpoint"/>
+        <cxf:jaxws-service serviceClass="com.mulesoft.mule.example.security.Greeter" doc:name="Unsecure service"/>
+        <component class="com.mulesoft.mule.example.security.GreeterService" doc:name="Greeter Service" />
+    </flow>
+
+    <flow name="UsernameTokenServiceFlow" doc:name="UsernameTokenServiceFlow">
+        <http:inbound-endpoint address="http://localhost:63081/services/username" exchange-pattern="request-response" doc:name="HTTP Inbound Endpoint"/>
+        <cxf:jaxws-service serviceClass="com.mulesoft.mule.example.security.Greeter" doc:name="Secure UsernameToken service">
+            <cxf:ws-security>
+                <cxf:ws-config>
+                    <cxf:property key="action" value="UsernameToken Timestamp"/>
+                    <cxf:property key="passwordCallbackClass" value="com.mulesoft.mule.example.security.PasswordCallback"/>
+                </cxf:ws-config>
+            </cxf:ws-security>
+        </cxf:jaxws-service>
+        <component class="com.mulesoft.mule.example.security.GreeterService" doc:name="Greeter Service"/>
+    </flow>
+    
+    <flow name="UsernameTokenSignedServiceFlow" doc:name="UsernameTokenSignedServiceFlow">
+        <http:inbound-endpoint address="http://localhost:63081/services/signed" exchange-pattern="request-response" doc:name="HTTP Inbound Endpoint"/>
+        <cxf:jaxws-service serviceClass="com.mulesoft.mule.example.security.Greeter" doc:name="Secure UsernameToken Signed service">
+            <cxf:ws-security>
+                <cxf:ws-config>
+                    <cxf:property key="action" value="UsernameToken Signature Timestamp"/>
+                    <cxf:property key="signaturePropFile" value="wssecurity.properties"/>
+                    <cxf:property key="passwordCallbackClass" value="com.mulesoft.mule.example.security.PasswordCallback"/>
+                </cxf:ws-config>
+            </cxf:ws-security>
+        </cxf:jaxws-service>
+        <component class="com.mulesoft.mule.example.security.GreeterService" doc:name="Greeter Service"/>
+    </flow>
+    
+    <flow name="UsernameTokenEncryptedServiceFlow" doc:name="UsernameTokenEncryptedServiceFlow">
+        <http:inbound-endpoint address="http://localhost:63081/services/encrypted" exchange-pattern="request-response" doc:name="HTTP Inbound Endpoint"/>
+        <cxf:jaxws-service serviceClass="com.mulesoft.mule.example.security.Greeter" doc:name="Secure UsernameToken Encrypted service">
+            <cxf:ws-security>
+                <cxf:ws-config>
+                    <cxf:property key="action" value="UsernameToken Timestamp Encrypt"/>
+                    <cxf:property key="decryptionPropFile" value="wssecurity.properties"/>
+                    <cxf:property key="passwordCallbackClass" value="com.mulesoft.mule.example.security.PasswordCallback"/>
+                </cxf:ws-config>
+            </cxf:ws-security>
+        </cxf:jaxws-service>
+        <component class="com.mulesoft.mule.example.security.GreeterService" doc:name="Greeter Service"/>
+    </flow>
+    
+    <flow name="SamlTokenServiceFlow" doc:name="SamlTokenServiceFlow">
+        <http:inbound-endpoint address="http://localhost:63081/services/saml" exchange-pattern="request-response" doc:name="HTTP Inbound Endpoint"/>
+        <cxf:jaxws-service serviceClass="com.mulesoft.mule.example.security.Greeter" doc:name="Secure SAMLToken service">
+            <cxf:ws-security>
+                <cxf:ws-config>
+                    <cxf:property key="action" value="SAMLTokenUnsigned Timestamp"/>
+                </cxf:ws-config>
+                <cxf:ws-custom-validator>
+                    <cxf:saml2-token-validator ref="samlCustomValidator"/>
+                </cxf:ws-custom-validator>
+            </cxf:ws-security>
+        </cxf:jaxws-service>
+        <component class="com.mulesoft.mule.example.security.GreeterService" doc:name="Greeter Service"/>
+    </flow>
+
+    <flow name="SignedSamlTokenServiceFlow" doc:name="SignedSamlTokenServiceFlow">
+        <http:inbound-endpoint address="http://localhost:63081/services/signedsaml" exchange-pattern="request-response" doc:name="HTTP Inbound Endpoint"/>
+        <cxf:jaxws-service serviceClass="com.mulesoft.mule.example.security.Greeter" doc:name="Secure SAMLToken Signed service">
+            <cxf:ws-security>
+                <cxf:ws-config>
+                    <cxf:property key="action" value="SAMLTokenUnsigned Signature"/>
+                    <cxf:property key="signaturePropFile" value="wssecurity.properties" />
+                </cxf:ws-config>
+                <cxf:ws-custom-validator>
+                    <cxf:saml2-token-validator ref="samlCustomValidator"/>
+                </cxf:ws-custom-validator>
+            </cxf:ws-security>
+        </cxf:jaxws-service>
+        <component class="com.mulesoft.mule.example.security.GreeterService" doc:name="Greeter Service"/>
+    </flow>
+</mule>

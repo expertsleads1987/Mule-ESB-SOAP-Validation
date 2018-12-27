@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:cxf="http://www.mulesoft.org/schema/mule/cxf" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="EE-3.4.0" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/cxf http://www.mulesoft.org/schema/mule/cxf/current/mule-cxf.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
+    <spring:beans>
+        <spring:bean name="samlCallbackHandler" class="com.mulesoft.mule.example.security.SAMLCallbackHandler" id="samlCallbackHandler"/>
+    </spring:beans>
+    <flow name="SecurityClients" doc:name="SecurityClients">
+        <http:inbound-endpoint exchange-pattern="request-response" host="localhost" port="63080" path="client" doc:name="HTTP Inbound Endpoint"/>
+        <set-payload value="#[message.inboundProperties['http.query.params']['name']]" doc:name="Set payload with 'name' query param"/>
+        <set-variable variableName="clientType" value="#[message.inboundProperties['http.query.params']['clientType']]" doc:name="Set clientType"/>
+        <choice doc:name="Choice">
+            <when expression="#[clientType == 'unsecure']">
+                    <flow-ref name="unsecure" doc:name="Invoke unsecure sub-flow"/>
+            </when>
+            <when expression="#[clientType == 'usernameToken']">
+                    <flow-ref name="usernameToken" doc:name="Invoke usernameToken sub-flow"/>
+            </when>
+            <when expression="#[clientType == 'usernameTokenSigned']">
+                    <flow-ref name="usernameTokenSigned" doc:name="Invoke usernameToken Signed sub-flow"/>
+            </when>
+            <when expression="#[clientType == 'usernameTokenEncrypted']">
+                    <flow-ref name="usernameTokenEncrypted" doc:name="Invoke usernameToken Encrypted sub-flow"/>
+            </when>
+            <when expression="#[clientType == 'samlToken']">
+                    <flow-ref name="samlToken" doc:name="Invoke samlToken sub-flow"/>
+            </when>
+            <when expression="#[clientType == 'samlTokenSigned']">
+                    <flow-ref name="samlTokenSigned" doc:name="Invoke samlToken Signed sub-flow"/>
+            </when>
+            <otherwise>
+                    <set-payload value="Client type is not supported" doc:name="Client type is not supported"/>
+            </otherwise>
+        </choice>
+        <set-property propertyName="Content-Type" value="text/plain" doc:name="Set response Content-Type"/>
+        <catch-exception-strategy doc:name="Catch Exception Strategy">
+        	<set-payload value="There has been an Error processing the request" doc:name="Set Payload"/>
+        	<set-property propertyName="Content-Type" value="text/plain" doc:name="Set response Content-Type"/>
+        </catch-exception-strategy>
+    </flow>
+    <sub-flow name="unsecure" doc:name="unsecure">
+        <cxf:jaxws-client operation="greet" serviceClass="com.mulesoft.mule.example.security.Greeter" doc:name="Unsecure SOAP client" doc:description="Unsecure SOAP client"/>
+        <http:outbound-endpoint exchange-pattern="request-response" host="localhost" port="63081" path="services/unsecure" doc:name="Invoke unsecure Web Service"/>
+    </sub-flow>
+    <sub-flow name="usernameToken" doc:name="usernameToken">
+        <cxf:jaxws-client operation="greet" serviceClass="com.mulesoft.mule.example.security.Greeter" doc:name="UsernameToken SOAP client">
+            <cxf:ws-security>
+                <cxf:ws-config>
+                    <cxf:property key="action" value="UsernameToken Timestamp"/>
+                    <cxf:property key="user" value="joe"/>
+                    <cxf:property key="passwordCallbackClass" value="com.mulesoft.mule.example.security.PasswordCallback"/>
+                </cxf:ws-config>
+            </cxf:ws-security>
+        </cxf:jaxws-client>
+        <http:outbound-endpoint exchange-pattern="request-response" host="localhost" port="63081" path="services/username" doc:name="Invoke usernameToken Web Service"/>
+    </sub-flow>
+    <sub-flow name="usernameTokenSigned" doc:name="usernameTokenSigned">
+        <cxf:jaxws-client operation="greet" serviceClass="com.mulesoft.mule.example.security.Greeter" doc:name="UsernameToken Signed SOAP client">
+            <cxf:ws-security>
+                <cxf:ws-config>
+                    <cxf:property key="action" value="UsernameToken Signature Timestamp"/>
+                    <cxf:property key="signaturePropFile" value="wssecurity.properties"/>
+                    <cxf:property key="user" value="joe"/>
+                    <cxf:property key="passwordCallbackClass" value="com.mulesoft.mule.example.security.PasswordCallback"/>
+                </cxf:ws-config>
+            </cxf:ws-security>
+        </cxf:jaxws-client>
+        <http:outbound-endpoint exchange-pattern="request-response" host="localhost" port="63081" path="services/signed" doc:name="Invoke usernameToken Signed Web Service"/>
+    </sub-flow>
+    <sub-flow name="usernameTokenEncrypted" doc:name="usernameTokenEncrypted">
+        <cxf:jaxws-client operation="greet" serviceClass="com.mulesoft.mule.example.security.Greeter" doc:name="UsernameToken Encrypted SOAP client">
+            <cxf:ws-security>
+                <cxf:ws-config>
+                    <cxf:property key="action" value="UsernameToken Timestamp Encrypt"/>
+                    <cxf:property key="encryptionPropFile" value="wssecurity.properties"/>
+                    <cxf:property key="user" value="joe"/>
+                    <cxf:property key="encryptionUser" value="joe"/>
+                    <cxf:property key="passwordCallbackClass" value="com.mulesoft.mule.example.security.PasswordCallback"/>
+                </cxf:ws-config>
+            </cxf:ws-security>
+        </cxf:jaxws-client>
+        <http:outbound-endpoint exchange-pattern="request-response" host="localhost" port="63081" path="services/encrypted" doc:name="Invoke usernameToken Encrypted Web Service"/>
+    </sub-flow>
+    <sub-flow name="samlToken" doc:name="samlToken">
+        <cxf:jaxws-client operation="greet" serviceClass="com.mulesoft.mule.example.security.Greeter" doc:name="SAMLToken SOAP client">
+            <cxf:ws-security>
+                <cxf:ws-config>
+                    <cxf:property key="action" value="SAMLTokenUnsigned Timestamp"/>
+                    <cxf:property key="samlPropFile" value="saml.properties"/>
+                    <cxf:property key="samlCallbackClass" value="com.mulesoft.mule.example.security.SAMLCallbackHandler"/>
+                </cxf:ws-config>
+            </cxf:ws-security>
+        </cxf:jaxws-client>
+        <http:outbound-endpoint exchange-pattern="request-response" host="localhost" port="63081" path="services/saml" doc:name="Invoke SAMLToken Web Service"/>
+    </sub-flow>
+    <sub-flow name="samlTokenSigned" doc:name="samlTokenSigned">
+        <cxf:jaxws-client operation="greet" serviceClass="com.mulesoft.mule.example.security.Greeter" doc:name="SAMLToken Signed SOAP client">
+            <cxf:ws-security>
+                <cxf:ws-config>
+                    <cxf:property key="action" value="SAMLTokenSigned"/>
+                    <cxf:property key="samlPropFile" value="saml.properties"/>
+                    <cxf:property key="signatureKeyIdentifier" value="DirectReference"/>
+                    <cxf:property key="user" value="joe"/>
+                    <cxf:property key="passwordCallbackClass" value="com.mulesoft.mule.example.security.PasswordCallback"/>
+                    <cxf:property key="samlCallbackClass" value="com.mulesoft.mule.example.security.SAMLCallbackHandler"/>
+                </cxf:ws-config>
+            </cxf:ws-security>
+        </cxf:jaxws-client>
+        <http:outbound-endpoint exchange-pattern="request-response" host="localhost" port="63081" path="services/signedsaml" doc:name="Invoke SAMLToken Signed Web Service"/>
+    </sub-flow>
+</mule>
